@@ -3,9 +3,9 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use App\StorableEvents\UserUpdatedProfile;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
+use App\Actions\UpdateUserProfile;
 
 new class extends Component {
     public string $name = '';
@@ -27,38 +27,15 @@ new class extends Component {
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
-
-        $validated = $this->validate([
-            'name' => ['required', 'string', 'max:255'],
-
-            'email' => [
-                'required',
-                'string',
-                'lowercase',
-                'email',
-                'max:255',
-                Rule::unique(User::class)->ignore($user->id)
-            ],
-
-            'bio' => ['nullable', 'string' ,'max:1000'],
-        ]);
-
-        $user->fill([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-        ]);
-    
-        if ($user->isDirty('email')) {
-            $user->email_verified_at = null;
-        }
-    
-        $user->save();
+        $updater = new UpdateUserProfile();
         
-        event(new UserUpdatedProfile(
-            Auth::id(),
-            $validated['bio'],
-        ));
+        $user    = $updater->handle(
+            Auth::user(),
+            [
+              'name'  => $this->name,
+              'email' => $this->email,
+              'bio'   => $this->bio,
+            ]);
 
         $this->dispatch('profile-updated', name: $user->name);
     }
@@ -111,7 +88,7 @@ new class extends Component {
                 @endif
             </div>
 
-            <flux:textarea wire:model="bio" :label="__('Bio')" type="bio" placeholder="Write something about yourself..."/>
+            <flux:textarea wire:model="bio" :label="__('Bio')" type="text" placeholder="Write something about yourself..."/>
 
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
